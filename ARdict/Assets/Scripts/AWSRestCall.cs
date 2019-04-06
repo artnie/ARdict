@@ -21,14 +21,14 @@ public class AWSRestCall : MonoBehaviour
     [Serializable]
     public class RekognitionLabelsJson
     {
-        public Label[] labels;        
+        public Label[] Labels;        
     }
 
     [Serializable]
     public class Label
     {
-        public string name;
-        public float confidence;
+        public string Name;
+        public float Confidence;
     }
 
     // Start is called before the first frame update
@@ -99,9 +99,9 @@ public class AWSRestCall : MonoBehaviour
             }
             else
             {
-                // TokenResponseJson json_obj = JsonUtility.FromJson<RekognitionLabelsJson>(request.downloadHandler.text);
+                RekognitionLabelsJson json_obj = JsonUtility.FromJson<RekognitionLabelsJson>(request.downloadHandler.text);
                 Debug.Log("Response: " + request.downloadHandler.text);
-                Debug.Log("Got labels!");
+                Debug.Log("Got labels! -> " + json_obj.Labels[0].Name);
                 
             }
         }
