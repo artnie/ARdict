@@ -3,227 +3,110 @@
 using System.IO;
 using UnityEngine;
 using UnityEngine.Networking;
+using System;
+//using UnityEngine.JSONSerializeModule;
 
 
 public class AWSRestCall : MonoBehaviour
 {
+    string id_token = "";
+
+    [Serializable]
+    public class TokenResponseJson
+    {
+        public string id_token;  
+        public string status;      
+    }
+
+    [Serializable]
+    public class RekognitionLabelsJson
+    {
+        public Label[] labels;        
+    }
+
+    [Serializable]
+    public class Label
+    {
+        public string name;
+        public float confidence;
+    }
+
     // Start is called before the first frame update
     void Start()
     {
-    	/*var api = "https://jsonplaceholder.typicode.com";
-		RestClient.GetArray<Post>(api + "/posts", (err, res) => {
-      		RestClient.GetArray<Todo>(api + "/todos", (errTodos, resTodos) => {
-    			RestClient.GetArray<User>(api + "/users", (errUsers, resUsers) => {
-      			//Missing validations to catch errors!
-    				});
-  				});
-			});*/
-		/*var api = "https://jsonplaceholder.typicode.com";
-		HttpWebRequest request = (HttpWebRequest)WebRequest.Create(api);
-        HttpWebResponse response = (HttpWebResponse)request.GetResponse();
-        StreamReader reader = new StreamReader(response.GetResponseStream());
-        string jsonResponse = reader.ReadToEnd();*/
-        var api = "https://jsonplaceholder.typicode.com";
-        StartCoroutine(GetRequest(api));
-        //StartCoroutine(PostRequest(GenerateRequestURL(lastRequestURL, lastRequestParameters, "POST"), JSON_body));
+        StartCoroutine(Wait());
 		print("jsonResponse"); 
     }
 
-    IEnumerator GetRequest(string uri)
+    IEnumerator Wait()
     {
-        using (UnityWebRequest webRequest = UnityWebRequest.Get(uri))
+        StartCoroutine(SetupIdToken());
+        yield return new WaitForSeconds(2);
+        StartCoroutine(GetRekognisedLabels());
+    }
+
+    IEnumerator SetupIdToken()
+    {
+        byte[] body = System.Text.Encoding.UTF8.GetBytes("{\"username\":\"testuser\", \"password\":\"testpassword\"}");
+        using (UnityWebRequest request = UnityWebRequest.Put("https://rmw6h8h7y6.execute-api.eu-west-1.amazonaws.com/prod/authenticate", body))
         {
-            // Request and wait for the desired page.
-            yield return webRequest.SendWebRequest();
+            yield return request.Send();
 
-            string[] pages = uri.Split('/');
-            int page = pages.Length - 1;
-
-            if (webRequest.isNetworkError)
+            if (request.isNetworkError || request.isHttpError)
             {
-                Debug.Log(pages[page] + ": Error: " + webRequest.error);
+                Debug.Log(request.error);
             }
             else
             {
-                Debug.Log(pages[page] + ":\nReceived: " + webRequest.downloadHandler.text);
-                print(webRequest.downloadHandler.text);
+                TokenResponseJson json_obj = JsonUtility.FromJson<TokenResponseJson>(request.downloadHandler.text);
+                Debug.Log("Response Status: " + request.error);
+                Debug.Log("Token set!");
+                id_token = json_obj.id_token;
+                print(request.downloadHandler.text);
             }
         }
     }
 
-	IEnumerator PostRequest(string url, string bodyJsonString)
-	{
-		bool requestFinished = false;
-	    bool requestErrorOccurred = false;
-
-
-	    var request = new UnityWebRequest(url, "POST");
-	    byte[] bodyRaw = new System.Text.UTF8Encoding().GetBytes(bodyJsonString);
-
-	    request.uploadHandler = (UploadHandler) new UploadHandlerRaw(bodyRaw);
-	    request.downloadHandler = (DownloadHandler) new DownloadHandlerBuffer();
-	    request.SetRequestHeader("Content-Type", "application/json");
-
-	    yield return request.Send();
-	    requestFinished = true;
-
-	    if (request.isError)
-	    {
-	        Debug.Log("Something went wrong, and returned error: " + request.error);
-	        requestErrorOccurred = true;
-	    }
-	    else
-	    {
-	        Debug.Log("Response: " + request.downloadHandler.text);
-
-			if (request.responseCode == 201)
-	        {
-	            Debug.Log("Request finished successfully! New User created successfully.");
-	        }
-	        else if (request.responseCode == 401)
-	        {
-	            Debug.Log("Error 401: Unauthorized. Resubmitted request!");
-	            requestErrorOccurred = true;
-	        }
-	    }
-	}
-
-	string authenticate(string username, string password)
-	{
-	    string auth = username + ":" + password;
-	    auth = System.Convert.ToBase64String(System.Text.Encoding.GetEncoding("ISO-8859-1").GetBytes(auth));
-	    auth = "Basic " + auth;
-	    return auth;
-	}
-
-	IEnumerator makeRequest()
-	{
-	    string authorization = authenticate("YourUserName", "YourPassWord");
-	    string url = "yourUrlWithoutUsernameAndPassword";
-
-
-	    UnityWebRequest www = UnityWebRequest.Get(url);
-	    www.SetRequestHeader("AUTHORIZATION", authorization);
-
-	    yield return www.Send();
-	    
-	}
-
-/*
-	IEnumerator PostRequest(string url, string bodyJsonString)
-	{
-	    requestFinished = false;
-	    requestErrorOccurred = false;
-
-	    var request = new UnityWebRequest(url, "POST");
-	    byte[] bodyRaw = new System.Text.UTF8Encoding().GetBytes(bodyJsonString);
-	    request.uploadHandler = (UploadHandler)new UploadHandlerRaw(bodyRaw);
-	    request.downloadHandler = (DownloadHandler)new DownloadHandlerBuffer();
-	    request.SetRequestHeader("Content-Type", "application/json");
-
-	    yield return request.Send();
-	    requestFinished = true;
-
-	    if (request.isError)
-	    {
-	        Debug.Log("Something went wrong, and returned error: " + request.error);
-	        requestErrorOccurred = true;
-	    }
-	    else
-	    {
-	        Debug.Log("Response: " + request.downloadHandler.text);
-
-	        if (request.responseCode == 201)
-	        {
-	            Debug.Log("Request finished successfully! New User created successfully.");
-	        }
-	        else if (request.responseCode == 401)
-	        {
-	            Debug.Log("Error 401: Unauthorized. Resubmitted request!");
-	            StartCoroutine(PostRequest(GenerateRequestURL(lastRequestURL, lastRequestParameters, "POST"), bodyJsonString));
-	            requestErrorOccurred = true;
-	        }
-	        else
-	        {
-	            Debug.Log("Request failed (status:" + request.responseCode + ").");
-	            requestErrorOccurred = true;
-	        }
-
-	        if (!requestErrorOccurred)
-	        {
-	            yield return null;
-	            // process results
-	        }
-	    }
-	}
-*/
-    IEnumerator Upload()
+    string authenticate(string token)
     {
+        string auth = token;
+        auth = System.Convert.ToBase64String(System.Text.Encoding.GetEncoding("ISO-8859-1").GetBytes("eyJraWQiOiJBQmtGeVRkNzBab1lJTVRlbUx4czlZMWthV010MkxIWTBUR041K1wvRGVUUT0iLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJhNjgyYTI3Ny1mYjM0LTQ3OWMtOTc3Zi1jOTk1NTVlODMwYjYiLCJhdWQiOiI1MXFma2hxaTYzMGVlNmU1djVlMDc1NGhzdCIsImV2ZW50X2lkIjoiNWU2NDQ1MjgtNTg5ZC0xMWU5LTgxMTEtY2I5OWFiMDAxMGZjIiwidG9rZW5fdXNlIjoiaWQiLCJhdXRoX3RpbWUiOjE1NTQ1NzY4NTMsImlzcyI6Imh0dHBzOlwvXC9jb2duaXRvLWlkcC5ldS13ZXN0LTEuYW1hem9uYXdzLmNvbVwvZXUtd2VzdC0xXzhZVzB0WUZvOSIsImNvZ25pdG86dXNlcm5hbWUiOiJ0ZXN0dXNlciIsImV4cCI6MTU1NDU4MDQ1MywiaWF0IjoxNTU0NTc2ODUzfQ.K5dhFi0TMDptUJhpwTvqCEqNDVSOsKYT3ECPVUy3r7uaSzXqSPso7ywsgUrOcHm-mYaG817Z5lfvJ2D2IGIz34gSY7RS-gNxinDkyPuOf7BUtmvbmylC8SkQwkuk1SHnF2eM_KQOB9XiarvJ_AwfuYZidnEUPFXiogKzbmdEaaGa4ve1DNPFB9LRhATWc5ZTQ6X_TWHwIA1wi3M8n9dq8Vhs4panDHsXE0PFp1fIrNk00q3_k7n2h1j3lMV56sH3S1VlVc6WPH2pMTupmjRMkqwXbkbzrZrk3n_-QQD17WVCFpmS8LXp8rwZzcxz6WU1vZ6hu-HP8PvdgwPUqpoArQ"));
+        return "eyJraWQiOiJBQmtGeVRkNzBab1lJTVRlbUx4czlZMWthV010MkxIWTBUR041K1wvRGVUUT0iLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJhNjgyYTI3Ny1mYjM0LTQ3OWMtOTc3Zi1jOTk1NTVlODMwYjYiLCJhdWQiOiI1MXFma2hxaTYzMGVlNmU1djVlMDc1NGhzdCIsImV2ZW50X2lkIjoiNWU2NDQ1MjgtNTg5ZC0xMWU5LTgxMTEtY2I5OWFiMDAxMGZjIiwidG9rZW5fdXNlIjoiaWQiLCJhdXRoX3RpbWUiOjE1NTQ1NzY4NTMsImlzcyI6Imh0dHBzOlwvXC9jb2duaXRvLWlkcC5ldS13ZXN0LTEuYW1hem9uYXdzLmNvbVwvZXUtd2VzdC0xXzhZVzB0WUZvOSIsImNvZ25pdG86dXNlcm5hbWUiOiJ0ZXN0dXNlciIsImV4cCI6MTU1NDU4MDQ1MywiaWF0IjoxNTU0NTc2ODUzfQ.K5dhFi0TMDptUJhpwTvqCEqNDVSOsKYT3ECPVUy3r7uaSzXqSPso7ywsgUrOcHm-mYaG817Z5lfvJ2D2IGIz34gSY7RS-gNxinDkyPuOf7BUtmvbmylC8SkQwkuk1SHnF2eM_KQOB9XiarvJ_AwfuYZidnEUPFXiogKzbmdEaaGa4ve1DNPFB9LRhATWc5ZTQ6X_TWHwIA1wi3M8n9dq8Vhs4panDHsXE0PFp1fIrNk00q3_k7n2h1j3lMV56sH3S1VlVc6WPH2pMTupmjRMkqwXbkbzrZrk3n_-QQD17WVCFpmS8LXp8rwZzcxz6WU1vZ6hu-HP8PvdgwPUqpoArQ";
+    }
+
+    IEnumerator GetRekognisedLabels()
+    {
+        string authorization = id_token;//authenticate(id_token);
+        print ("autorization token: " + authorization);
+        string url = "https://72nzjn85fk.execute-api.eu-west-1.amazonaws.com/prod/ping";
+        string json_string = "{\"body-json\": \"bucket:trialimagesar\",\"key:/storage/emulated/0/Android/data/com.moh.ar/files/photo.jpg\"}}";
+        byte[] body = System.Text.Encoding.UTF8.GetBytes(json_string);
+
         WWWForm form = new WWWForm();
-        form.AddField("myField", "myData");
-
-        using (UnityWebRequest www = UnityWebRequest.Post("http://www.my-server.com/myform", form))
+        
+        form.AddField("bucket", "trialimagesar");
+        form.AddField("key", "/storage/emulated/0/Android/data/com.moh.ar/files/photo.jpg");
+        
+        using (UnityWebRequest request = UnityWebRequest.Post(url, form))
         {
-            yield return www.SendWebRequest();
+            request.SetRequestHeader("Authorization", authorization);
+            request.SetRequestHeader("content-type", "application/json");
+            yield return request.Send();
 
-            if (www.isNetworkError || www.isHttpError)
+            if (request.isNetworkError || request.isHttpError)
             {
-                Debug.Log(www.error);
+                Debug.Log(request.error + ": " + request.downloadHandler.text);
             }
             else
             {
-                Debug.Log("Form upload complete!");
+                // TokenResponseJson json_obj = JsonUtility.FromJson<RekognitionLabelsJson>(request.downloadHandler.text);
+                Debug.Log("Response: " + request.downloadHandler.text);
+                Debug.Log("Got labels!");
+                
             }
         }
     }
 
-    // IEnumerator PostRequest(string url, string bodyJsonString)
-    // {
-    //     bool requestFinished = false;
-    //     bool requestErrorOccurred = false;
-
-    //     var request = new UnityWebRequest(url, "POST");
-    //     byte[] bodyRaw = new System.Text.UTF8Encoding().GetBytes(bodyJsonString);
-    //     request.uploadHandler = (UploadHandler)new UploadHandlerRaw(bodyRaw);
-    //     request.downloadHandler = (DownloadHandler)new DownloadHandlerBuffer();
-    //     request.SetRequestHeader("Content-Type", "application/json");
-
-    //     yield return request.Send();
-    //     requestFinished = true;
-
-    //     if (request.isNetworkError)
-    //     {
-    //         Debug.Log("Something went wrong, and returned error: " + request.error);
-    //         requestErrorOccurred = true;
-    //     }
-    //     else
-    //     {
-    //         Debug.Log("Response: " + request.downloadHandler.text);
-
-    //         if (request.responseCode == 201)
-    //         {
-    //             Debug.Log("Request finished successfully! New User created successfully.");
-    //         }
-    //         else if (request.responseCode == 401)
-    //         {
-    //             Debug.Log("Error 401: Unauthorized. Resubmitted request!");
-    //             StartCoroutine(PostRequest(GenerateRequestURL(lastRequestURL, lastRequestParameters, "POST"), bodyJsonString));
-    //             requestErrorOccurred = true;
-    //         }
-    //         else
-    //         {
-    //             Debug.Log("Request failed (status:" + request.responseCode + ").");
-    //             requestErrorOccurred = true;
-    //         }
-
-    //         if (!requestErrorOccurred)
-    //         {
-    //             yield return null;
-    //             // process results
-    //         }
-    //     }
-    // }
-    // Update is called once per frame
     void Update()
     {
         
