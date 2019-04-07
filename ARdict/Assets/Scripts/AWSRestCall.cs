@@ -1,15 +1,19 @@
 ﻿using System.Collections;
-//using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 using UnityEngine.Networking;
 using System;
-//using UnityEngine.JSONSerializeModule;
 
 
 public class AWSRestCall : MonoBehaviour
 {
     string id_token = "";
+    string label = "Nothing";
+
+    string[] lang = {"en", "de", "da", "fr", "es"};
+    int targetLang = 1;
+    string sourceLang = "auto";
+    string translatedLabel = "Nothing";
 
     [Serializable]
     public class TokenResponseJson
@@ -29,6 +33,23 @@ public class AWSRestCall : MonoBehaviour
     {
         public string Name;
         public float Confidence;
+        public Instance[] Instances;
+    }
+
+    [Serializable]
+    public class Instance
+    {
+        public Dimension BoundingBox;
+        public float Confidence;
+    }
+
+    [Serializable]
+    public class Dimension
+    {
+        public float Height;
+        public float Width;
+        public float Top;
+        public float Left;
     }
 
     // Start is called before the first frame update
@@ -41,8 +62,12 @@ public class AWSRestCall : MonoBehaviour
     IEnumerator Wait()
     {
         StartCoroutine(SetupIdToken());
-        yield return new WaitForSeconds(2);
+        //new WaitForSeconds(2);
+        yield return new WaitForSeconds(1);
         StartCoroutine(GetRekognisedLabels());
+        //yield return new WaitForSeconds(1);
+        StartCoroutine(GetTranslation(sourceLang, lang[targetLang], label));
+
     }
 
     IEnumerator SetupIdToken()
@@ -71,7 +96,7 @@ public class AWSRestCall : MonoBehaviour
     {
         string auth = token;
         auth = System.Convert.ToBase64String(System.Text.Encoding.GetEncoding("ISO-8859-1").GetBytes("eyJraWQiOiJBQmtGeVRkNzBab1lJTVRlbUx4czlZMWthV010MkxIWTBUR041K1wvRGVUUT0iLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJhNjgyYTI3Ny1mYjM0LTQ3OWMtOTc3Zi1jOTk1NTVlODMwYjYiLCJhdWQiOiI1MXFma2hxaTYzMGVlNmU1djVlMDc1NGhzdCIsImV2ZW50X2lkIjoiNWU2NDQ1MjgtNTg5ZC0xMWU5LTgxMTEtY2I5OWFiMDAxMGZjIiwidG9rZW5fdXNlIjoiaWQiLCJhdXRoX3RpbWUiOjE1NTQ1NzY4NTMsImlzcyI6Imh0dHBzOlwvXC9jb2duaXRvLWlkcC5ldS13ZXN0LTEuYW1hem9uYXdzLmNvbVwvZXUtd2VzdC0xXzhZVzB0WUZvOSIsImNvZ25pdG86dXNlcm5hbWUiOiJ0ZXN0dXNlciIsImV4cCI6MTU1NDU4MDQ1MywiaWF0IjoxNTU0NTc2ODUzfQ.K5dhFi0TMDptUJhpwTvqCEqNDVSOsKYT3ECPVUy3r7uaSzXqSPso7ywsgUrOcHm-mYaG817Z5lfvJ2D2IGIz34gSY7RS-gNxinDkyPuOf7BUtmvbmylC8SkQwkuk1SHnF2eM_KQOB9XiarvJ_AwfuYZidnEUPFXiogKzbmdEaaGa4ve1DNPFB9LRhATWc5ZTQ6X_TWHwIA1wi3M8n9dq8Vhs4panDHsXE0PFp1fIrNk00q3_k7n2h1j3lMV56sH3S1VlVc6WPH2pMTupmjRMkqwXbkbzrZrk3n_-QQD17WVCFpmS8LXp8rwZzcxz6WU1vZ6hu-HP8PvdgwPUqpoArQ"));
-        return "eyJraWQiOiJBQmtGeVRkNzBab1lJTVRlbUx4czlZMWthV010MkxIWTBUR041K1wvRGVUUT0iLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJhNjgyYTI3Ny1mYjM0LTQ3OWMtOTc3Zi1jOTk1NTVlODMwYjYiLCJhdWQiOiI1MXFma2hxaTYzMGVlNmU1djVlMDc1NGhzdCIsImV2ZW50X2lkIjoiNWU2NDQ1MjgtNTg5ZC0xMWU5LTgxMTEtY2I5OWFiMDAxMGZjIiwidG9rZW5fdXNlIjoiaWQiLCJhdXRoX3RpbWUiOjE1NTQ1NzY4NTMsImlzcyI6Imh0dHBzOlwvXC9jb2duaXRvLWlkcC5ldS13ZXN0LTEuYW1hem9uYXdzLmNvbVwvZXUtd2VzdC0xXzhZVzB0WUZvOSIsImNvZ25pdG86dXNlcm5hbWUiOiJ0ZXN0dXNlciIsImV4cCI6MTU1NDU4MDQ1MywiaWF0IjoxNTU0NTc2ODUzfQ.K5dhFi0TMDptUJhpwTvqCEqNDVSOsKYT3ECPVUy3r7uaSzXqSPso7ywsgUrOcHm-mYaG817Z5lfvJ2D2IGIz34gSY7RS-gNxinDkyPuOf7BUtmvbmylC8SkQwkuk1SHnF2eM_KQOB9XiarvJ_AwfuYZidnEUPFXiogKzbmdEaaGa4ve1DNPFB9LRhATWc5ZTQ6X_TWHwIA1wi3M8n9dq8Vhs4panDHsXE0PFp1fIrNk00q3_k7n2h1j3lMV56sH3S1VlVc6WPH2pMTupmjRMkqwXbkbzrZrk3n_-QQD17WVCFpmS8LXp8rwZzcxz6WU1vZ6hu-HP8PvdgwPUqpoArQ";
+        return auth;
     }
 
     IEnumerator GetRekognisedLabels()
@@ -101,8 +126,41 @@ public class AWSRestCall : MonoBehaviour
             {
                 RekognitionLabelsJson json_obj = JsonUtility.FromJson<RekognitionLabelsJson>(request.downloadHandler.text);
                 Debug.Log("Response: " + request.downloadHandler.text);
-                Debug.Log("Got labels! -> " + json_obj.Labels[0].Name);
+                Debug.Log("Got labels!");
+                label = json_obj.Labels[0].Name;
+                print(json_obj.Labels[0].Name);
                 
+            }
+        }
+    }
+
+    [Serializable]
+    public class TranslateResult{public object[] data;}
+    [Serializable]
+    public class TranslateData{public  Translation[] translations;}    
+    [Serializable]
+    public class Translation {public string translatedText;}
+
+    IEnumerator GetTranslation(string srcLang, string tarLang, string sourceText)
+    {
+        string url = String.Format("https://translate.googleapis.com/translate_a/single?client=gtx&sl={0}&tl={1}&dt=t&q={2}",
+            srcLang, tarLang, sourceText);
+        using (UnityWebRequest request = UnityWebRequest.Get(url))
+        {
+            yield return request.Send();
+            
+            if (request.isNetworkError || request.isHttpError)
+            {
+                Debug.Log(request.error + ": " + request.downloadHandler.text);
+            }
+            else
+            {
+                string translation = (string)request.downloadHandler.text;
+                translation = translation.Substring(translation.IndexOf("\"")+1);
+                translation = translation.Substring(0, translation.IndexOf("\""));
+                //translation = translation.Substring(0, translation.IndexOf("\"")+1);
+                translatedLabel = translation;
+                print(label + ": " + translatedLabel);
             }
         }
     }
@@ -111,4 +169,5 @@ public class AWSRestCall : MonoBehaviour
     {
         
     }
+
 }
