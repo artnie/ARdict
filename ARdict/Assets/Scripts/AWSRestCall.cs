@@ -66,7 +66,7 @@ public class AWSRestCall : MonoBehaviour
         yield return new WaitForSeconds(1);
         StartCoroutine(GetRekognisedLabels());
         //yield return new WaitForSeconds(1);
-        StartCoroutine(GetTranslation(sourceLang, lang[targetLang], label));
+        //StartCoroutine(GetTranslation(sourceLang, lang[targetLang], label));
 
     }
 
@@ -109,8 +109,10 @@ public class AWSRestCall : MonoBehaviour
 
         WWWForm form = new WWWForm();
         
-        form.AddField("bucket", "trialimagesar");
-        form.AddField("key", "/storage/emulated/0/Android/data/com.moh.ar/files/photo.jpg");
+        // this is not used anymore, bucket and key are now hardcoded in the AWS Lambda function 
+        // form.AddField("bucket", "trialimagesar");
+        // //form.AddField("key", "/storage/emulated/0/Android/data/com.moh.ar/files/photo.jpg");
+        // form.AddField("key", "/Users/mohamedaboughazala/Library/Application Support/DefaultCompany/HelloAR U3D/photo.jpg");
         
         using (UnityWebRequest request = UnityWebRequest.Post(url, form))
         {
