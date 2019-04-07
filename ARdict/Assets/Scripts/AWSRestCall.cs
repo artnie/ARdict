@@ -15,6 +15,8 @@ public class AWSRestCall : MonoBehaviour
     string sourceLang = "auto";
     string translatedLabel = "Nothing";
 
+    Hashtable translationCache = new Hashtable();
+
     [Serializable]
     public class TokenResponseJson
     {
@@ -65,8 +67,8 @@ public class AWSRestCall : MonoBehaviour
         //new WaitForSeconds(2);
         yield return new WaitForSeconds(1);
         StartCoroutine(GetRekognisedLabels());
-        //yield return new WaitForSeconds(1);
-        //StartCoroutine(GetTranslation(sourceLang, lang[targetLang], label));
+        yield return new WaitForSeconds(2);
+        StartCoroutine(GetTranslation(sourceLang, lang[targetLang], label));
 
     }
 
@@ -145,24 +147,34 @@ public class AWSRestCall : MonoBehaviour
 
     IEnumerator GetTranslation(string srcLang, string tarLang, string sourceText)
     {
-        string url = String.Format("https://translate.googleapis.com/translate_a/single?client=gtx&sl={0}&tl={1}&dt=t&q={2}",
-            srcLang, tarLang, sourceText);
-        using (UnityWebRequest request = UnityWebRequest.Get(url))
+        if (translationCache.Contains(sourceText))
         {
-            yield return request.Send();
-            
-            if (request.isNetworkError || request.isHttpError)
+            translatedLabel = (string)translationCache[sourceText];
+            print(label + ": " + translatedLabel);
+            yield return null;
+        }
+        else
+        {
+            string url = String.Format("https://translate.googleapis.com/translate_a/single?client=gtx&sl={0}&tl={1}&dt=t&q={2}",
+                srcLang, tarLang, sourceText);
+            using (UnityWebRequest request = UnityWebRequest.Get(url))
             {
-                Debug.Log(request.error + ": " + request.downloadHandler.text);
-            }
-            else
-            {
-                string translation = (string)request.downloadHandler.text;
-                translation = translation.Substring(translation.IndexOf("\"")+1);
-                translation = translation.Substring(0, translation.IndexOf("\""));
-                //translation = translation.Substring(0, translation.IndexOf("\"")+1);
-                translatedLabel = translation;
-                print(label + ": " + translatedLabel);
+                yield return request.Send();
+                
+                if (request.isNetworkError || request.isHttpError)
+                {
+                    Debug.Log(request.error + ": " + request.downloadHandler.text);
+                }
+                else
+                {
+                    string translation = (string)request.downloadHandler.text;
+                    translation = translation.Substring(translation.IndexOf("\"")+1);
+                    translation = translation.Substring(0, translation.IndexOf("\""));
+                    //translation = translation.Substring(0, translation.IndexOf("\"")+1);
+                    translatedLabel = translation;
+                    translationCache.Add(sourceText, translation);
+                    print(label + ": " + translatedLabel);
+                }
             }
         }
     }
