@@ -10,22 +10,24 @@ public class AWSRestCall : MonoBehaviour
     string id_token = "";
     string label = "Nothing";
 
-    string[] lang = {"en", "de", "da", "fr", "es"};
+    string[] lang = { "en", "de", "da", "fr", "es" };
     int targetLang = 1;
     string sourceLang = "auto";
     string translatedLabel = "Nothing";
+    public GameObject AnimatorFlags;
+    private bool isHidden;
     public TextMesh labelOrigin;
     [Serializable]
     public class TokenResponseJson
     {
-        public string id_token;  
-        public string status;      
+        public string id_token;
+        public string status;
     }
 
     [Serializable]
     public class RekognitionLabelsJson
     {
-        public Label[] Labels;        
+        public Label[] Labels;
     }
 
     [Serializable]
@@ -51,21 +53,24 @@ public class AWSRestCall : MonoBehaviour
         public float Top;
         public float Left;
     }
-
+    Hashtable translationCache = new Hashtable();
+	
     public void init()
     {
         StartCoroutine(Wait());
-		print("jsonResponse"); 
+        isHidden=false;
+        print("jsonResponse");
     }
 
     IEnumerator Wait()
     {
         StartCoroutine(SetupIdToken());
         yield return new WaitForSeconds(1);
-    
+
 
     }
-    public IEnumerator UpdateFrame(){
+    public IEnumerator UpdateFrame()
+    {
         StartCoroutine(GetRekognisedLabels());
         yield return null;
         StartCoroutine(GetTranslation(sourceLang, lang[targetLang], label));
@@ -103,18 +108,18 @@ public class AWSRestCall : MonoBehaviour
     IEnumerator GetRekognisedLabels()
     {
         string authorization = id_token;//authenticate(id_token);
-        print ("autorization token: " + authorization);
+        print("autorization token: " + authorization);
         string url = "https://72nzjn85fk.execute-api.eu-west-1.amazonaws.com/prod/ping";
         string json_string = "{\"body-json\": \"bucket:trialimagesar\",\"key:/storage/emulated/0/Android/data/com.moh.ar/files/photo.jpg\"}}";
         byte[] body = System.Text.Encoding.UTF8.GetBytes(json_string);
 
         WWWForm form = new WWWForm();
-        
+
         // this is not used anymore, bucket and key are now hardcoded in the AWS Lambda function 
         // form.AddField("bucket", "trialimagesar");
         // //form.AddField("key", "/storage/emulated/0/Android/data/com.moh.ar/files/photo.jpg");
         // form.AddField("key", "/Users/mohamedaboughazala/Library/Application Support/DefaultCompany/HelloAR U3D/photo.jpg");
-        
+
         using (UnityWebRequest request = UnityWebRequest.Post(url, form))
         {
             request.SetRequestHeader("Authorization", authorization);
@@ -131,46 +136,91 @@ public class AWSRestCall : MonoBehaviour
                 Debug.Log("Response: " + request.downloadHandler.text);
                 Debug.Log("Got labels!");
                 label = json_obj.Labels[0].Name;
-                labelOrigin.text= json_obj.Labels[0].Name;
-                
+
             }
         }
     }
 
     [Serializable]
-    public class TranslateResult{public object[] data;}
+    public class TranslateResult { public object[] data; }
     [Serializable]
-    public class TranslateData{public  Translation[] translations;}    
+    public class TranslateData { public Translation[] translations; }
     [Serializable]
-    public class Translation {public string translatedText;}
+    public class Translation { public string translatedText; }
 
-    IEnumerator GetTranslation(string srcLang, string tarLang, string sourceText)
+       IEnumerator GetTranslation(string srcLang, string tarLang, string sourceText)
     {
-        string url = String.Format("https://translate.googleapis.com/translate_a/single?client=gtx&sl={0}&tl={1}&dt=t&q={2}",
-            srcLang, tarLang, sourceText);
-        using (UnityWebRequest request = UnityWebRequest.Get(url))
+        if (translationCache.ContainsKey(sourceText + tarLang))
         {
-            yield return request.Send();
-            
-            if (request.isNetworkError || request.isHttpError)
+            translatedLabel = (string)translationCache[sourceText + tarLang];
+            print(label + ": " + translatedLabel);
+            yield return null;
+        }
+        else
+        {
+            string url = String.Format("https://translate.googleapis.com/translate_a/single?client=gtx&sl={0}&tl={1}&dt=t&q={2}",
+                srcLang, tarLang, sourceText);
+            using (UnityWebRequest request = UnityWebRequest.Get(url))
             {
-                Debug.Log(request.error + ": " + request.downloadHandler.text);
-            }
-            else
-            {
-                string translation = (string)request.downloadHandler.text;
-                translation = translation.Substring(translation.IndexOf("\"")+1);
-                translation = translation.Substring(0, translation.IndexOf("\""));
-                //translation = translation.Substring(0, translation.IndexOf("\"")+1);
-                translatedLabel = translation;
-                print(label + ": " + translatedLabel);
+                yield return request.Send();
+                
+                if (request.isNetworkError || request.isHttpError)
+                {
+                    Debug.Log(request.error + ": " + request.downloadHandler.text);
+                }
+                else
+                {
+                    string translation = (string)request.downloadHandler.text;
+                    translation = translation.Substring(translation.IndexOf("\"")+1);
+                    translation = translation.Substring(0, translation.IndexOf("\""));
+                    //translation = translation.Substring(0, translation.IndexOf("\"")+1);
+                    translatedLabel = translation;
+                    translationCache.Add(sourceText + tarLang, translation);
+                    print(label + ": " + translatedLabel);
+                }
             }
         }
     }
-
-    void Update()
+    public void ChangeToEN()
     {
-        
+        targetLang = 0;
     }
+    public void ChangeToDE()
+    {
+        targetLang = 1;
 
+    }
+    public void ChangeToDA()
+    {
+        targetLang = 2;
+
+    }
+    public void ChangeToFr()
+    {
+        targetLang = 3;
+
+    }
+    public void ChangeToEs()
+    {
+        targetLang = 4;
+
+    }
+    public void ControlFlags(){
+        if(isHidden){
+            showsFlags();
+        }
+        else{
+            hideFlags();
+        }
+    }
+    public void showsFlags(){
+        AnimatorFlags.GetComponent<Animator>().Play("HideFlag");
+                isHidden=false;
+
+    }
+    public void hideFlags(){
+        AnimatorFlags.GetComponent<Animator>().Play("ShowFlag");
+        isHidden=true;
+
+    }
 }
