@@ -37,6 +37,12 @@ public class AWSRestCall : MonoBehaviour
         public float Confidence;
         public Instance[] Instances;
     }
+        public class TranslatedObject
+    {
+        public int code;
+        public string lang;
+        public string[] text;
+    }
 
     [Serializable]
     public class Instance
@@ -153,29 +159,32 @@ public class AWSRestCall : MonoBehaviour
         if (translationCache.ContainsKey(sourceText + tarLang))
         {
             translatedLabel = (string)translationCache[sourceText + tarLang];
+                                labelOrigin.text   = translatedLabel;
+
             print(label + ": " + translatedLabel);
             yield return null;
         }
         else
         {
-            string url = String.Format("https://translate.googleapis.com/translate_a/single?client=gtx&sl={0}&tl={1}&dt=t&q={2}",
-                srcLang, tarLang, sourceText);
+            string newUrl="https://translate.yandex.net/api/v1.5/tr.json/translate?key=trnsl.1.1.20190407T074508Z.d8a43976935e2d2d.d1fa3fded8b1c283023649d36797b0faf2b75ee1&text="+sourceText+"&lang="+tarLang;
+            string url = newUrl;
             using (UnityWebRequest request = UnityWebRequest.Get(url))
             {
-                yield return request.Send();
                 
+                yield return request.Send();
+                                TranslatedObject json_obj = JsonUtility.FromJson<TranslatedObject>(request.downloadHandler.text);
+
+            
                 if (request.isNetworkError || request.isHttpError)
                 {
                     Debug.Log(request.error + ": " + request.downloadHandler.text);
                 }
                 else
                 {
-                    string translation = (string)request.downloadHandler.text;
-                    translation = translation.Substring(translation.IndexOf("\"")+1);
-                    translation = translation.Substring(0, translation.IndexOf("\""));
-                    //translation = translation.Substring(0, translation.IndexOf("\"")+1);
-                    translatedLabel = translation;
-                    translationCache.Add(sourceText + tarLang, translation);
+                  
+                    translatedLabel = json_obj.text[0];
+                    translationCache.Add(sourceText + tarLang, json_obj.text[0]);
+                    labelOrigin.text   = translatedLabel;
                     print(label + ": " + translatedLabel);
                 }
             }
@@ -224,3 +233,4 @@ public class AWSRestCall : MonoBehaviour
 
     }
 }
+

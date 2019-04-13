@@ -76,6 +76,7 @@ namespace AWSSDK.Examples
                 debugger.text=screenShotPath;
                 PostObject( screenShotPath);
 
+                debugger.text=Application.persistentDataPath;
 
                 // PostObject( "/storage/emulated/0/Android/data/com.moh.ar/files/photo.jpg");
 
@@ -119,9 +120,9 @@ namespace AWSSDK.Examples
         /// </summary>
         public void PostObject(String fileName)
         {
-            debugger.text="Retrieving the file";
+            // debugger.text="Retrieving the file";
             var stream = new FileStream(fileName, FileMode.Open, FileAccess.Read, FileShare.Read);
-            debugger.text=" Creating request object";
+            // debugger.text=" Creating request object";
             var request = new PostObjectRequest()
             {
                 Bucket = S3BucketName,
